@@ -3,10 +3,7 @@
 # Castle Crashers Recomp
 
 A native reimplementation of the engine of Castle Crashers (the 2012 PC
-Steam build): the SWF renderer, timelines, the ActionScript interpreter and
-the game's natives, menus, input, saves, collision and sound. The game itself,
-its art, its levels and its scripts, comes from your own copy: nothing of it
-is in this repository.
+Steam build)
 
 It also builds for the GameCube:
 [CCGC](https://github.com/myuu-151/CCGC) compiles this engine for the console.
