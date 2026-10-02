@@ -60,8 +60,8 @@ what happened at any tick of a bug met while playing.
   Tall Grass Field).
 - `CASTLE_MAX=N`: that character maxed in the save, level 99 with every stat 25
   (1 the green knight, 2 the red, 3 the blue, 4 the orange).
-- `--mod NAME`: replacement graphics from `mods/NAME/`, off by default (the
-  format is in `engine/player/mods.h`).
+- `--mod NAME`: replacement graphics from `mods/NAME/`, off by default (see
+  `mods/README.md`).
 
 ## Layout
 
@@ -69,3 +69,4 @@ what happened at any tick of a bug met while playing.
 |---|---|
 | `engine/` | The engine: SWF rendering, timelines, the ActionScript interpreter, natives, menus, input, saves, collision, sound |
 | `tools/` | `make_assets.py` and the steps it runs |
+| `mods/` | Optional replacement graphics (`--mod NAME`) and how to make them |
