@@ -1,0 +1,15 @@
+# Made from your copy of the game (tools/make_assets.py): never committed
+assets/
+CastleCrashers/
+
+# Build output
+build/
+sessions/
+castle_save.dat
+state_dump.txt
+
+# Caches
+__pycache__/
+*.py[cod]
+.vs/
+.vscode/
