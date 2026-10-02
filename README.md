@@ -6,7 +6,14 @@ A native reimplementation of the engine of Castle Crashers (the 2012 PC
 Steam build)
 
 It also builds for the GameCube:
-[CCGC](https://github.com/myuu-151/CCGC) compiles this engine for the console.
+[Castle Crashers GC](https://github.com/myuu-151/Castle-Crashers-GC) compiles this engine for the console.
+
+> **In active development.** Castle Crashers Recomp is a work in progress: how it runs and plays
+> may change from one build to the next, and some things don't work yet.
+>
+> Found a bug? Please report it as a ticket on the
+> [Issues page](https://github.com/myuu-151/Castle-Crashers-Recomp/issues): what happened, what you
+> expected, and how to make it happen again if you can.
 
 ## What you need
 
