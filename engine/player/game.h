@@ -33,6 +33,7 @@ public:
     void start(const std::string& movie = "");
     // Called once per game tick (1/30 s).
     void tick();
+    void warp_test();  // (boot_warp)
     // The tick's length: 1/30 s, except that castle.exe hands a tick after a
     // slow frame the time measured (a replay sets it from "!! dt").
     float dt = 1.0f / 30.0f;
@@ -155,6 +156,16 @@ public:
     // to it. 0: off. (PC: CASTLE_LEVEL; GameCube: CCGC/Scripts/Data/level.txt.)
     int boot_level = 0;
     bool boot_level_done = false;
+    // TESTING: with boot_level, where in it the players start: the level's own
+    // spawn portal (_root.spawn_portal_num; level 30's 9 is just before its
+    // boss). 0: as the map says. (PC: CASTLE_PORTAL; GameCube: portal.txt.)
+    int boot_portal = 0;
+    // TESTING: with boot_level, the players then put just before this
+    // waypoint, the ones before it marked reached (warp_test; level 30's 18
+    // is its last boss). 0: off. (PC: CASTLE_WARP; GameCube: warp.txt.)
+    int boot_warp = 0;
+    bool boot_warp_done = false;
+    int warp_ticks_ = 0;
     // TESTING: this character maxed in every save loaded (save::Storage::
     // max_out; 2 the red knight). 0: off. (PC: CASTLE_MAX; GameCube: max.txt.)
     int max_character = 0;

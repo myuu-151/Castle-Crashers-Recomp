@@ -640,6 +640,10 @@ int main(int argc, char** argv) {
     if (!mod.empty()) game.mod_dir = find_repo_dir(fs::path("mods") / mod);
     // TESTING: CASTLE_LEVEL=N -- the first level the game loads is level N
     if (const char* level = std::getenv("CASTLE_LEVEL")) game.boot_level = std::atoi(level);
+    // TESTING: CASTLE_PORTAL=N -- and the players start at its spawn portal N
+    if (const char* portal = std::getenv("CASTLE_PORTAL")) game.boot_portal = std::atoi(portal);
+    // TESTING: CASTLE_WARP=N -- and then put just before its waypoint N
+    if (const char* warp = std::getenv("CASTLE_WARP")) game.boot_warp = std::atoi(warp);
     // TESTING: CASTLE_MAX=N -- character N maxed (2: the red knight)
     if (const char* max = std::getenv("CASTLE_MAX")) game.max_character = std::atoi(max);
     if (mode == "--selftest") {

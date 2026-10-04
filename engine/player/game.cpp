@@ -193,6 +193,48 @@ void Game::tick() {
     // The main loop's other iteration of the tick (doc 2.1) checks again,
     // with the same pad states.
     check_pause();
+    if (boot_warp > 0 && boot_level_done && !boot_warp_done) warp_test();
+}
+
+// TESTING (boot_warp): once the boot level has run a little, its waypoints
+// before boot_warp are marked reached (their fights skipped) and the players
+// put just before it. The waypoints are the level's BSP file's (bsp, read by
+// the f_BSPLoadLevel native; f_GetWPX, f_GetWPHit); the players are
+// _root.loader.game.game.p1-p4, placed by their x and y (f_WalkToInit).
+void Game::warp_test() {
+    if (!current_ || !current_->root() || boot_warp >= 200) return;
+    if (bsp.waypoint(boot_warp, 0) == 0.0f) {  // (the level's BSP not read yet)
+        warp_ticks_ = 0;
+        return;
+    }
+    if (++warp_ticks_ < 90) return;  // (the level's start: players walk in)
+    boot_warp_done = true;
+    MovieClip* root = current_->root();
+    auto member = [](MovieClip* clip, const char* name) -> MovieClip* {
+        if (!clip) return nullptr;
+        const as::NameId id = as::names().intern(name);
+        if (MovieClip* child = clip->child_named(id)) return child;
+        if (as::Cell* c = clip->props.find(id)) return MovieClip::from(c->load().obj);
+        return nullptr;
+    };
+    const float x = bsp.waypoint(boot_warp, 0) - 150.0f;
+    const float y = bsp.waypoint(boot_warp, 1);
+    for (int i = 0; i < boot_warp; i++) bsp.waypoint(i, 2) = 1.0f;
+    MovieClip* game = member(member(member(root, "loader"), "game"), "game");
+    int moved = 0;
+    for (int i = 1; i <= 4 && game; i++) {
+        MovieClip* p = member(game, ("p" + std::to_string(i)).c_str());
+        if (!p) continue;
+        as::Value vx, vy;
+        vx.set_float(x - float(i) * 20.0f);
+        vy.set_float(y);
+        p->props.get_or_add(as::names().intern("x")).store(vx);
+        p->props.get_or_add(as::names().intern("y")).store(vy);
+        p->set_property(as::name::k_x, vx);
+        p->set_property(as::name::k_y, vy);
+        moved++;
+    }
+    SDL_Log("boot warp: waypoints 0-%d marked reached, %d players put at %.0f, %.0f", boot_warp - 1, moved, x, y);
 }
 
 // ---- Pause
@@ -602,6 +644,14 @@ void Game::load_movie(MovieClip* target, as::NameId name) {
             const std::string to = "level" + std::to_string(boot_level);
             SDL_Log("boot level: %s -> %s", movie.c_str(), to.c_str());
             name = as::names().intern(to);
+            // The map set the spawn portal before asking for the level (as
+            // the screen faded): set over it, the level reads it as it starts.
+            if (boot_portal > 0 && target->player->root()) {
+                as::Value v;
+                v.set_int(boot_portal);
+                target->player->root()->props.get_or_add(as::names().intern("spawn_portal_num")).store(v);
+                SDL_Log("boot level: spawn portal %d", boot_portal);
+            }
         }
     }
     target->player->context().load_queue.push_back({target, target->serial, name});
