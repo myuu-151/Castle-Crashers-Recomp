@@ -285,9 +285,11 @@ void Movie::drop_pixels() {
     // The memory the pixels took, given back: a buffer the new size, if one
     // can be had (the records move with it).
     const uint8_t* before = data.data();
-    try {
-        data.shrink_to_fit();
-    } catch (const std::bad_alloc&) {
+    if (!keep_data || !keep_data(data)) {
+        try {
+            data.shrink_to_fit();
+        } catch (const std::bad_alloc&) {
+        }
     }
     if (data.data() != before) {
         for (auto& [id, ch] : characters) {

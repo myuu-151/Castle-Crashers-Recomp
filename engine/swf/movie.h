@@ -84,6 +84,11 @@ public:
     // (files::read_holed on a GameCube): a renderer that makes its texture
     // from it a part at a time returns true; if not, they are read whole.
     static inline bool (*take_pixel_stream)(BitmapCharacter&, const files::HoleStream&) = nullptr;
+    // A console's: true to keep the data's buffer as it is once bitmaps' pixels
+    // and stored shape records are cut from it (the GameCube reads a level's
+    // file into a region set aside for it, where a smaller copy would land in
+    // the heap instead). The PC gives the memory back.
+    static inline bool (*keep_data)(const std::vector<uint8_t>& data) = nullptr;
     // A bitmap whose bottom row is all transparent under an all-opaque row
     // (the plain skies) draws that row as the one above: true if these two
     // rows (RGBA, `width` pixels) are so.
