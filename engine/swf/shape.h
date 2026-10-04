@@ -79,6 +79,18 @@ struct Shape {
     size_t record_size = 0;
     int version = 0;
     bool parsed = false;
+    // The record kept out of main memory by a console (stash: the GameCube
+    // puts it in ARAM, where its 1.5 MB of player and effects shapes don't
+    // take the levels' memory): `record` is null and this is its handle, and
+    // load() copies it back to parse it. 0: the record is in the movie's data.
+    uint32_t stored = 0;
+
+    // A console's store for records (none on the PC): stash copies a record
+    // out and returns its handle (0: not stored, it stays in the data), fetch
+    // copies it back into `out`, release frees it.
+    static inline uint32_t (*stash)(const uint8_t* record, size_t size) = nullptr;
+    static inline bool (*fetch)(uint32_t handle, uint8_t* out, size_t size) = nullptr;
+    static inline void (*release)(uint32_t handle) = nullptr;
 
     bool tessellated = false;
     bool out_of_memory = false;  // memory ran out tessellating: fills are missing

@@ -218,6 +218,65 @@ void* tess_realloc(void*, void* p, unsigned int size) {
     return moved;
 }
 
+// A gradient is coloured at the mesh's vertices, the colours blended between
+// them. A shape with few vertices across its gradient loses it: the cave's
+// darkness (level 37, character 151) is a rectangle with a radial gradient,
+// clear in the middle and black at the edges, and with only its four (black)
+// corners it drew the whole screen black. So a gradient fill whose colours,
+// blended, are off by more than kGradientError (of 255) at a triangle's middle
+// or an edge's -- only those -- has every triangle split in four, the new
+// points shared between neighbours (no seams), until it isn't (at most
+// kGradientSplits times).
+constexpr int kGradientError = 6, kGradientSplits = 5;
+
+int color_error(Rgba blended, Rgba exact) {
+    return std::max({std::abs(int(blended.r) - int(exact.r)), std::abs(int(blended.g) - int(exact.g)),
+                     std::abs(int(blended.b) - int(exact.b)), std::abs(int(blended.a) - int(exact.a))});
+}
+
+bool gradient_off(const Mesh& mesh, const FillStyle& fill, size_t first_index) {
+    auto at = [&](uint32_t i) -> const Vertex& { return mesh.vertices[i]; };
+    for (size_t t = first_index; t + 2 < mesh.indices.size(); t += 3) {
+        const Vertex& a = at(mesh.indices[t]);
+        const Vertex& b = at(mesh.indices[t + 1]);
+        const Vertex& c = at(mesh.indices[t + 2]);
+        auto check = [&](const Vertex& p, const Vertex& q) {
+            Rgba blended = lerp(p.color, q.color, 0.5f);
+            return color_error(blended, fill_color(fill, (p.x + q.x) / 2, (p.y + q.y) / 2)) > kGradientError;
+        };
+        if (check(a, b) || check(b, c) || check(c, a)) return true;
+        Rgba ab = lerp(a.color, b.color, 0.5f);
+        Rgba middle = lerp(ab, c.color, 1.0f / 3.0f);  // (a + b + c) / 3
+        if (color_error(middle, fill_color(fill, (a.x + b.x + c.x) / 3, (a.y + b.y + c.y) / 3)) > kGradientError)
+            return true;
+    }
+    return false;
+}
+
+void refine_gradient(Mesh& mesh, const FillStyle& fill, size_t first_index) {
+    if (fill.stops.empty()) return;
+    for (int split = 0; split < kGradientSplits && gradient_off(mesh, fill, first_index); split++) {
+        std::map<std::pair<uint32_t, uint32_t>, uint32_t> middles;
+        auto middle = [&](uint32_t p, uint32_t q) {
+            auto key = std::minmax(p, q);
+            auto it = middles.find(key);
+            if (it != middles.end()) return it->second;
+            float x = (mesh.vertices[p].x + mesh.vertices[q].x) / 2, y = (mesh.vertices[p].y + mesh.vertices[q].y) / 2;
+            uint32_t m = uint32_t(mesh.vertices.size());
+            mesh.vertices.push_back({x, y, fill_color(fill, x, y)});
+            middles.emplace(key, m);
+            return m;
+        };
+        std::vector<uint32_t> tris(mesh.indices.begin() + ptrdiff_t(first_index), mesh.indices.end());
+        mesh.indices.resize(first_index);
+        for (size_t t = 0; t + 2 < tris.size(); t += 3) {
+            uint32_t a = tris[t], b = tris[t + 1], c = tris[t + 2];
+            uint32_t ab = middle(a, b), bc = middle(b, c), ca = middle(c, a);
+            for (uint32_t i : {a, ab, ca, ab, b, bc, ca, bc, c, ab, bc, ca}) mesh.indices.push_back(i);
+        }
+    }
+}
+
 // False if memory ran out (the fill is left out).
 bool add_fill(Mesh& mesh, const FillStyle& fill, const std::vector<std::vector<Point>>& contours) {
     static TESSalloc alloc = {tess_alloc, tess_realloc, tess_free, nullptr, 0, 0, 0, 0, 0, 0};
@@ -242,11 +301,13 @@ bool add_fill(Mesh& mesh, const FillStyle& fill, const std::vector<std::vector<P
             mesh.vertices.push_back({v[i * 2], v[i * 2 + 1], fill_color(fill, v[i * 2], v[i * 2 + 1])});
         const TESSindex* el = tessGetElements(tess);
         int ne = tessGetElementCount(tess);
+        const size_t first_index = mesh.indices.size();
         for (int i = 0; i < ne; i++) {
             const TESSindex* tri = el + i * 3;
             if (tri[0] == TESS_UNDEF || tri[1] == TESS_UNDEF || tri[2] == TESS_UNDEF) continue;
             for (int k = 0; k < 3; k++) mesh.indices.push_back(base + uint32_t(tri[k]));
         }
+        refine_gradient(mesh, fill, first_index);
     }
     tessDeleteTess(tess);
     return true;
@@ -296,9 +357,16 @@ void add_stroke(Mesh& mesh, const LineStyle& line, const std::vector<Point>& pts
 }  // namespace
 
 void Shape::load() {
-    if (parsed || !record) return;
-    Reader r(record, record_size);
-    parse(r, version);
+    if (parsed) return;
+    if (record) {
+        Reader r(record, record_size);
+        parse(r, version);
+    } else if (stored && fetch) {
+        std::vector<uint8_t> copy(record_size);
+        if (!fetch(stored, copy.data(), copy.size())) return;
+        Reader r(copy.data(), copy.size());
+        parse(r, version);
+    }
 }
 
 void Shape::parse(Reader& r, int shape_version) {
@@ -406,7 +474,7 @@ void Shape::tessellate() {
     }
     // The mesh is all a renderer needs; the rest is parsed again if wanted.
     // (Swapped out: `v = {}` would keep the vectors' memory.)
-    if (record) {
+    if (record || stored) {
         std::vector<Path>().swap(paths);
         std::vector<FillStyle>().swap(fills);
         std::vector<LineStyle>().swap(lines);

@@ -144,10 +144,13 @@ public:
 private:
     void read_tags(size_t pos, size_t end, Timeline& timeline, bool nested);
     void define(uint16_t code, Reader& r, size_t end);
-    // The bitmaps' pixels, copied out, are dropped from `data`, and every
-    // offset and pointer into it after them moves down.
+    // Shape records a console keeps out of main memory (Shape::stash): each
+    // one stored is cut from `data` with the pixels.
+    void stash_records();
+    // The bitmaps' pixels, copied out, and the records stored are dropped
+    // from `data`, and every offset and pointer into it after them moves down.
     void drop_pixels();
-    std::vector<std::pair<size_t, size_t>> pixels_;  // [start, end) in data, while loading
+    std::vector<std::pair<size_t, size_t>> pixels_;  // [start, end) in data to cut, while loading
     // Read with its large bitmaps' pixels left out (files::holes): each
     // bitmap made as its pixels go by, then the tags they were in shortened.
     bool read_holed(const std::string& path, const std::vector<files::Hole>& holes);

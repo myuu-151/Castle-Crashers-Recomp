@@ -31,6 +31,14 @@ enum TagCode : uint16_t {
 
 Movie::~Movie() {
     if (on_destroy) on_destroy(*this);
+    if (Shape::release) {
+        for (auto& [id, ch] : characters) {
+            if (ch->type != CharacterType::Shape) continue;
+            Shape& shape = static_cast<ShapeCharacter&>(*ch).shape;
+            if (shape.stored) Shape::release(shape.stored);
+            shape.stored = 0;
+        }
+    }
 }
 
 namespace {
@@ -211,23 +219,42 @@ std::unique_ptr<Movie> Movie::load(const std::string& path) {
     movie->frame_rate = float(rate >> 8) + float(rate & 0xFF) / 256.0f;
     r.u16();  // frame count; the tags are authoritative
     movie->read_tags(r.pos(), d.size(), movie->root, false);
+    movie->stash_records();
     movie->drop_pixels();
     movie->holed_.clear();
     movie->hole_sizes_.clear();
     return movie;
 }
 
+void Movie::stash_records() {
+    if (!Shape::stash) return;
+    for (auto& [id, ch] : characters) {
+        if (ch->type != CharacterType::Shape) continue;
+        Shape& shape = static_cast<ShapeCharacter&>(*ch).shape;
+        if (!shape.record || shape.record_size == 0) continue;
+        uint32_t handle = Shape::stash(shape.record, shape.record_size);
+        if (!handle) continue;  // (no room: it stays)
+        size_t at = size_t(shape.record - data.data());
+        pixels_.push_back({at, at + shape.record_size});
+        shape.record = nullptr;
+        shape.stored = handle;
+    }
+}
+
 void Movie::drop_pixels() {
     if (pixels_.empty()) return;
     std::sort(pixels_.begin(), pixels_.end());
-    // Where an offset moves to: down by the pixels before it.
+    // Where an offset moves to: down by the pieces cut before it (a binary
+    // search: with a movie's shape records cut too, there are thousands, and
+    // as many tags).
+    std::vector<size_t> ends, cut_before{0};
+    for (auto& [start, end] : pixels_) {
+        ends.push_back(end);
+        cut_before.push_back(cut_before.back() + (end - start));
+    }
     auto moved = [&](size_t at) {
-        size_t down = 0;
-        for (auto& [start, end] : pixels_) {
-            if (end > at) break;
-            down += end - start;
-        }
-        return at - down;
+        size_t before = size_t(std::upper_bound(ends.begin(), ends.end(), at) - ends.begin());
+        return at - cut_before[before];
     };
     auto remap = [&](Timeline& timeline) {
         for (Frame& frame : timeline.frames)
