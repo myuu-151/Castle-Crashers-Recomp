@@ -75,6 +75,10 @@ public:
     // Called as a movie is destroyed, so a renderer can free what it made
     // for the movie's characters (their gpu_mesh and texture handles).
     static inline void (*on_destroy)(Movie&) = nullptr;
+    // Called once a movie has loaded, so a renderer can make ahead what it
+    // would otherwise make when the movie's shapes are first drawn (a
+    // GameCube builds a level's biggest shapes behind its loading screen).
+    static inline void (*on_loaded)(Movie&) = nullptr;
     // A bitmap's pixels (RGBA, rows top to bottom), still in the file's data
     // as it loads: a renderer that makes its texture from them now returns
     // true, and they aren't copied into the bitmap's `rgba` (a console

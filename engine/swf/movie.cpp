@@ -223,6 +223,7 @@ std::unique_ptr<Movie> Movie::load(const std::string& path) {
     movie->drop_pixels();
     movie->holed_.clear();
     movie->hole_sizes_.clear();
+    if (on_loaded) on_loaded(*movie);
     return movie;
 }
 
